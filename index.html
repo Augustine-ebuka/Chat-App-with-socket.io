@@ -3,26 +3,69 @@
   <head>
     <title>Socket.IO chat</title>
     <style>
-      body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      body { 
+        margin: 0; 
+        padding-bottom: 3rem; 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: aquamarine;
+       }
 
-      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
-      #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
-      #input:focus { outline: none; }
-      #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
+      #form { 
+        background: rgba(0, 0, 0, 0.15);
+        padding: 0.25rem; 
+        position: fixed;
+        bottom: 0; 
+        left: 0; 
+        right: 0;
+        display: flex;
+        height: 3rem;
+        box-sizing: border-box;
+        backdrop-filter: blur(10px); 
+      }
+      #input {
+        border: none; 
+        padding: 0 1rem; 
+        flex-grow: 1;
+        border-radius: 2rem; 
+        margin: 0.25rem; 
+      }
+      #input:focus { 
+        outline: none; 
+      }
+      #form > button {
+         background: #333; 
+         border: none; 
+         padding: 0 1rem; 
+         margin: 0.25rem; 
+         border-radius: 3px; 
+         outline: none; 
+         color: #fff; }
 
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages > li { padding: 0.5rem 1rem; }
-      #messages > li:nth-child(odd) { background: #efefef; }
+      #messages { 
+        list-style-type: none; 
+        margin: 0; 
+        padding: 0; 
+      }
+      #messages > li { 
+        padding: 0.5rem 1rem;
+       }
+      #messages > li:nth-child(odd) {
+         background: #efefef;
+         }
     </style>
   </head>
   <body>
     <input type="text" name="usrname" id="user">
-    <span><h2>User: </h2></span><h3 id="user_disp"></h3>
+    <h5 id="notification"></h5>
+    <h2>User: <span id="user_disp"></span></h3>
     <h5 class="status"></h5>
+
     <ul id="messages"></ul>
     <form id="form" action="">
-      <input id="input" autocomplete="off" /><button>Send</button>
+      <input id="input" autocomplete="off" />
+      <button>Send</button>
     </form>
+
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
@@ -32,7 +75,9 @@
       var form = document.getElementById('form');
       var input = document.getElementById('input');
       // var username = document.getElementById('user');
-
+      
+      
+    
       form.addEventListener('submit', function(e) {
         var user_id = document.querySelector('#user').value;
         var display_name = document.querySelector('#user_disp')
@@ -44,10 +89,47 @@
             input.value = '';
           }
         }else{
-          displayeUser = "set user name"
+          const display_not = document.getElementById('notification');
+          display_not.style.color = 'red';
+          display_not.innerHTML = "pls set user name"
+          setTimeout(()=>{
+            display_not.style.display = 'none';
+          }, 2000)
         }
+
+
+        
       });
+
+  var typing = false;
+  var timeout = undefined;
+  function timeoutFunction(){
+    typing = false;
+    socket.emit('notTyping');
+  }
+  function onKeyDownNotEnter(){
+    if(typing == false) {
+      typing = true
+      socket.emit('typingMessage', document.getElementById('user').value);
+      timeout = setTimeout(timeoutFunction, 5000);
+    } else {
+      clearTimeout(timeout);
+      timeout = setTimeout(timeoutFunction, 5000);
+    }
+
+  }
+  input.addEventListener('keyup', onKeyDownNotEnter)
+  socket.on('typing',(id)=>{
+    console.log(`${id} is typing`);
+
+  })
+
+      // we emit new user to the server
       socket.emit('new user', document.querySelector('#user').value)
+
+      socket.on('new user', (user_id)=>{
+        display_name.innerHTML = user_id
+      })
 
       socket.on('user-disconnected',(res,numConnected)=>{
         const disp = document.querySelector('.status')
@@ -56,7 +138,7 @@
           disp.innerHTML = ""
         },2000)
       })
-      socket.on('connection',(res,numConnected)=>{
+      socket.on('user-connection',(res,numConnected)=>{
         const disp = document.querySelector('.status')
         disp.innerHTML =`${res}: ${numConnected}`
         console.log(res)
@@ -65,7 +147,6 @@
         },2000)
       })
       socket.on('chat message', function(id,msg) {
-        console.log(id,msg);
         var item = document.createElement('li');
         item.textContent = `${id}:${msg}`
         messages.appendChild(item);
